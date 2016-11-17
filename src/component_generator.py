@@ -8,7 +8,8 @@ METHOD_TEMPLATE = '''    def {method_name}(self{arguments}{kwarguments}):\n     
 
 class ComponentGenerator:
 
-    def generate_class(self, class_name, python2=False):
+    @staticmethod
+    def generate_class(class_name, python2=False):
         """ Geneate a method stub for the given name, args and kwargs.
 
         Stub a method that will be in the style of standard python formatting:
@@ -38,8 +39,9 @@ class ComponentGenerator:
             python2_formatting=python2_formatting,
         )
 
+    @classmethod
     def generate_method_stub(
-        self,
+        cls,
         method_name,
         arguments=None,
         kwarguments=None
@@ -65,8 +67,8 @@ class ComponentGenerator:
             # Remove duplicate keys (``set`` is unordered.)
             arguments = list(OrderedDict.fromkeys(arguments).keys())
 
-        formatted_arguments = self._format_method_arguments(arguments)
-        formatted_kwarguments = self._format_method_kwarguments(
+        formatted_arguments = cls._format_method_arguments(arguments)
+        formatted_kwarguments = cls._format_method_kwarguments(
             kwarguments,
             arguments
         )
@@ -77,7 +79,8 @@ class ComponentGenerator:
             kwarguments=formatted_kwarguments,
         )
 
-    def _format_method_arguments(self, arguments):
+    @staticmethod
+    def _format_method_arguments(arguments):
         if isinstance(arguments, (list, tuple, set)):
             arguments = ', {}'.format(', '.join(arguments))
 
@@ -86,7 +89,8 @@ class ComponentGenerator:
 
         return arguments
 
-    def _format_method_kwarguments(self, kwarguments, arguments):
+    @staticmethod
+    def _format_method_kwarguments(kwarguments, arguments):
         if isinstance(kwarguments, (list, tuple, set)):
             new_kwargs = []
 

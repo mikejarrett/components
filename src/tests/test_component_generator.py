@@ -6,17 +6,15 @@ from component_generator import ComponentGenerator
 
 class Test(TestCase):
 
-    component = ComponentGenerator()
-
     def test_generate_method_stub_no_args_no_kwargs(self):
-        actual = self.component.generate_method_stub('persist_evil_dead')
+        actual = ComponentGenerator.generate_method_stub('persist_evil_dead')
         actual = actual.replace('    ', '')
 
         expected = 'def persist_evil_dead(self):\npass\n'
         self.assertEqual(actual, expected)
 
     def test_generate_method_stub_args_no_kwargs(self):
-        actual = self.component.generate_method_stub(
+        actual = ComponentGenerator.generate_method_stub(
             'persist_evil_dead',
             ['arg1', 'arg2'],
         )
@@ -26,7 +24,7 @@ class Test(TestCase):
         self.assertEqual(actual, expected)
 
     def test_generate_method_stub_args_and_kwargs(self):
-        actual = self.component.generate_method_stub(
+        actual = ComponentGenerator.generate_method_stub(
             'persist_evil_dead',
             ['arg1'],
             [('arg3', 'None')],
@@ -37,7 +35,7 @@ class Test(TestCase):
         self.assertEqual(actual, expected)
 
     def test_generate_method_stub_duplicate_args(self):
-        actual = self.component.generate_method_stub(
+        actual = ComponentGenerator.generate_method_stub(
             'persist_evil_dead',
             ['arg1', 'arg1'],
         )
@@ -47,7 +45,7 @@ class Test(TestCase):
         self.assertEqual(actual, expected)
 
     def test_generate_method_stub_duplicate_args_and_kwargs(self):
-        actual = self.component.generate_method_stub(
+        actual = ComponentGenerator.generate_method_stub(
             'persist_evil_dead',
             ['arg1'],
             [('arg1', 'None'), ('arg2', "'Groovy'")]
@@ -58,14 +56,14 @@ class Test(TestCase):
         self.assertEqual(actual, expected)
 
     def test_generate_class_old_class_style__python2(self):
-        actual = self.component.generate_class('Ash', python2=True)
+        actual = ComponentGenerator.generate_class('Ash', python2=True)
         actual = actual.replace('    ', '')
 
         expected = 'class Ash(object):\n'
         self.assertEqual(actual, expected)
 
     def test_generate_class_new_class_style(self):
-        actual = self.component.generate_class('Ash', python2=False)
+        actual = ComponentGenerator.generate_class('Ash', python2=False)
         actual = actual.replace('    ', '')
 
         expected = 'class Ash:\n'
