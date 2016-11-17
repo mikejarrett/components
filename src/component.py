@@ -7,7 +7,7 @@ METHOD_TEMPLATE = '''    def {method_name}(self{arguments}{kwarguments}):\n     
 
 class ComponentGenerator:
 
-    def generate_method_name(
+    def generate_method_stub(
         self,
         method_name,
         arguments=None,
