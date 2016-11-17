@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from unittest import TestCase
 
-from component import ComponentGenerator
+from component_generator import ComponentGenerator
 
 
 class Test(TestCase):
@@ -50,9 +50,23 @@ class Test(TestCase):
         actual = self.component.generate_method_stub(
             'persist_evil_dead',
             ['arg1'],
-            [('arg1', 'None'), ('arg2', "'Tasty'")]
+            [('arg1', 'None'), ('arg2', "'Groovy'")]
         )
         actual = actual.replace('    ', '')
 
-        expected = "def persist_evil_dead(self, arg1, arg2='Tasty'):\npass\n"
+        expected = "def persist_evil_dead(self, arg1, arg2='Groovy'):\npass\n"
+        self.assertEqual(actual, expected)
+
+    def test_generate_class_old_class_style__python2(self):
+        actual = self.component.generate_class('Ash', python2=True)
+        actual = actual.replace('    ', '')
+
+        expected = 'class Ash(object):\n'
+        self.assertEqual(actual, expected)
+
+    def test_generate_class_new_class_style(self):
+        actual = self.component.generate_class('Ash', python2=False)
+        actual = actual.replace('    ', '')
+
+        expected = 'class Ash:\n'
         self.assertEqual(actual, expected)
