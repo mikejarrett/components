@@ -82,26 +82,24 @@ def build_logic_structure(component_name, py2):
 
     lower_component_name = component_name.lower()
     logic_class_name = '{}Logic'.format(component_name.replace('_', ''))
-    logic_file_body = ''.join([
-        ENCODING,
-        BLANK_LINE,
-        BLANK_LINE,
-        ComponentGenerator.generate_class(logic_class_name, python2=py2),
-        BLANK_LINE,
-        ComponentGenerator.generate_method_stub(
-            'create_{0}'.format(lower_component_name),
-        ),
-        BLANK_LINE,
-        ComponentGenerator.generate_method_stub(
-            'get_{0}_by_id'.format(lower_component_name),
-            ['id'],
-        ),
-    ])
+    formatting = {
+        'class_name': logic_class_name,
+        'methods': [
+            {
+                'name': 'create_{0}'.format(lower_component_name),
+            }, {
+                'name': 'get_{0}_by_id'.format(lower_component_name),
+                'args': ['id'],
+            }
+        ]
+    }
 
+    logic_file_body = ComponentGenerator.build_file_body(formatting)
     logic_base_path = './{}/logic'.format(lower_component_name)
     create_file('{}/logic.py'.format(logic_base_path), logic_file_body)
 
-    create_file('{}/tests/__init__.py'.format(logic_base_path), ENCODING)
+    init_file_body = ComponentGenerator.build_file_body({'__init__': True})
+    create_file('{}/tests/__init__.py'.format(logic_base_path), init_file_body)
     interface_body = ''.join([
         ENCODING,
 

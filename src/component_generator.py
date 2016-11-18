@@ -12,6 +12,69 @@ METHOD_TEMPLATE = '    def {method_name}(self{arguments}{kwarguments}):\n       
 
 class ComponentGenerator:
 
+    @classmethod
+    def build_file_body(cls, data):
+        """ Take a dictionary structure and build a file's body.
+
+        Structure of data:
+            {
+                'from_imports': [[0, 1]] ``list`` of ``list``, [0] is import
+                    path and [1] is the thing we are importing,
+                'imports': ``list`` of import names,
+                'class_name': ``str``,
+                'python2': ``bool``,
+                'methods': [
+                    {
+                        'name': ``str``,
+                        'args': ``list`` of ``str`` representing args
+                            (optional),
+                        'kwargs': ``list`` of ``list`` of keyword args
+                            (optional),
+                    },
+                ],
+            }
+        """
+        body = [
+            ENCODING,
+            BLANK_LINE,
+        ]
+
+        imports_available = False
+        if 'from_imports' in data:
+            imports_available = True
+            pass
+
+        if 'imports' in data:
+            imports_available = True
+            pass
+
+        if not imports_available and not data.get('__init__', False):
+            body.extend([
+                BLANK_LINE,
+                BLANK_LINE,
+            ])
+
+        if 'class_name' in data:
+            python2 = data.get('python2', False)
+            class_name = data['class_name']
+            body.extend([
+                cls.generate_class(class_name, python2),
+                BLANK_LINE,
+            ])
+
+        if 'methods' in data:
+            for method in data['methods']:
+                body.extend([
+                    cls.generate_method_stub(
+                        method['name'],
+                        method.get('args', []),
+                        method.get('kwargs', [])
+                    ),
+                    BLANK_LINE,
+                ])
+
+        return ''.join(body)
+
     @staticmethod
     def generate_class(class_name, python2=False):
         """ Geneate a method stub for the given name, args and kwargs.
