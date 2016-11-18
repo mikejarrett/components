@@ -37,15 +37,17 @@ def create_directory_structure(component_name):
     lower_component_name = component_name.lower()
 
     base_path = './{}'.format(lower_component_name)
+
+    init_file_body = ComponentGenerator.build_file_body({'__init__': True})
+
     # Logic
     path = '{}/logic/tests'.format(base_path)
     try:
         os.makedirs(path)
     except FileExistsError:
         pass
-    create_file('{}/__init__.py'.format(path), ENCODING)
-
-    create_file('{}/logic/__init__.py'.format(base_path), ENCODING)
+    create_file('{}/__init__.py'.format(path), init_file_body)
+    create_file('{}/logic/__init__.py'.format(base_path), init_file_body)
 
     # Storage
     path = '{}/storage/tests'.format(base_path)
@@ -53,9 +55,8 @@ def create_directory_structure(component_name):
         os.makedirs(path)
     except FileExistsError:
         pass
-    create_file('{}/__init__.py'.format(path), ENCODING)
-
-    create_file('{}/storage/__init__.py'.format(base_path), ENCODING)
+    create_file('{}/__init__.py'.format(path), init_file_body)
+    create_file('{}/storage/__init__.py'.format(base_path), init_file_body)
 
     # Clients
     path = '{}/clients/tests'.format(base_path)
@@ -75,13 +76,16 @@ def create_file(path, data):
 
 def build_logic_structure(component_name, py2):
     print('Creating logic files...')
-    if not os.path.exists(component_name.lower()):
+    lower_component_name = component_name.lower()
+    if not os.path.exists(lower_component_name):
         msg = 'Directory structure is not in place! Exiting'
         print(msg, file=sys.stderr)
         sys.exit(1)
 
-    lower_component_name = component_name.lower()
     logic_class_name = '{}Logic'.format(component_name.replace('_', ''))
+
+    # logic.py
+    logic_base_path = './{}/logic'.format(lower_component_name)
     formatting = {
         'class_name': logic_class_name,
         'methods': [
@@ -93,27 +97,24 @@ def build_logic_structure(component_name, py2):
             }
         ]
     }
-
-    logic_file_body = ComponentGenerator.build_file_body(formatting)
-    logic_base_path = './{}/logic'.format(lower_component_name)
-    create_file('{}/logic.py'.format(logic_base_path), logic_file_body)
+    create_file(
+        '{}/logic.py'.format(logic_base_path),
+        ComponentGenerator.build_file_body(formatting)
+    )
 
     init_file_body = ComponentGenerator.build_file_body({'__init__': True})
     create_file('{}/tests/__init__.py'.format(logic_base_path), init_file_body)
-    interface_body = ''.join([
-        ENCODING,
 
-    ])
 
-    init_file_body = ''.join([
-        ENCODING,
-        BLANK_LINE,
-        FROM_IMPORT_TEMPLATE.format(
-            module_path='{}.logic'.format(lower_component_name),
-            import_name=logic_class_name
-        ),
-    ])
-    create_file('{}/__init__.py'.format(logic_base_path), init_file_body)
+    formatting = {
+        'from_imports': [
+            ['{}.logic'.format(lower_component_name), logic_class_name]
+        ]
+    }
+    create_file(
+        '{}/__init__.py'.format(logic_base_path),
+        ComponentGenerator.build_file_body(formatting),
+    )
 
 
 if __name__ == '__main__':

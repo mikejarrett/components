@@ -42,7 +42,14 @@ class ComponentGenerator:
         imports_available = False
         if 'from_imports' in data:
             imports_available = True
-            pass
+            for imports in data['from_imports']:
+                body.extend([
+                    FROM_IMPORT_TEMPLATE.format(
+                        module_path=imports[0],
+                        import_name=imports[1]
+                    ),
+                    BLANK_LINE
+                ])
 
         if 'imports' in data:
             imports_available = True
