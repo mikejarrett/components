@@ -2,8 +2,12 @@
 from collections import OrderedDict
 
 
-CLASS_TEMPLATE = '''class {class_name}{python2_formatting}:\n'''
-METHOD_TEMPLATE = '''    def {method_name}(self{arguments}{kwarguments}):\n        pass\n'''
+ENCODING = '# -*- coding: utf-8 -*-'
+BLANK_LINE = '\n'
+IMPORT_TEMPLATE = 'import {import_name}'
+FROM_IMPORT_TEMPLATE = 'from {module_path} import {import_name}'
+CLASS_TEMPLATE = 'class {class_name}{python2_formatting}:\n'
+METHOD_TEMPLATE = '    def {method_name}(self{arguments}{kwarguments}):\n        pass\n'
 
 
 class ComponentGenerator:
