@@ -2,12 +2,12 @@
 from collections import OrderedDict
 
 
-ENCODING = '# -*- coding: utf-8 -*-'
+ENCODING = '# -*- coding: utf-8 -*-\n'
 BLANK_LINE = '\n'
 IMPORT_TEMPLATE = 'import {import_name}'
 FROM_IMPORT_TEMPLATE = 'from {module_path} import {import_name}'
-CLASS_TEMPLATE = 'class {class_name}{python2_formatting}:\n'
-METHOD_TEMPLATE = '    def {method_name}(self{arguments}{kwarguments}):\n        pass\n'
+CLASS_TEMPLATE = 'class {class_name}{inheritance}:\n\n{class_level_arguments}'
+METHOD_TEMPLATE = '    def {method_name}(self{arguments}{kwarguments}):\n{additional}'
 
 
 class ComponentGenerator:
@@ -22,6 +22,8 @@ class ComponentGenerator:
                     path and [1] is the thing we are importing,
                 'imports': ``list`` of import names,
                 'class_name': ``str``,
+                'class_inheritance': ``list`` of ``str``,
+                'class_level_arguments': ``list`` of class level arguments,
                 'python2': ``bool``,
                 'methods': [
                     {
@@ -36,26 +38,24 @@ class ComponentGenerator:
         """
         body = [
             ENCODING,
-            BLANK_LINE,
         ]
 
-        imports_available = False
-        if 'from_imports' in data:
-            imports_available = True
-            for imports in data['from_imports']:
-                body.extend([
-                    FROM_IMPORT_TEMPLATE.format(
-                        module_path=imports[0],
-                        import_name=imports[1]
-                    ),
-                    BLANK_LINE
-                ])
+        for imports in sorted(data.get('from_imports', [])):
+            body.extend([
+                FROM_IMPORT_TEMPLATE.format(
+                    module_path=imports[0],
+                    import_name=imports[1]
+                ),
+                BLANK_LINE
+            ])
 
-        if 'imports' in data:
-            imports_available = True
-            pass
+        for import_ in sorted(data.get('imports', [])):
+            body.extend([
+                IMPORT_TEMPLATE.format(import_name=import_),
+                BLANK_LINE
+            ])
 
-        if not imports_available and not data.get('__init__', False):
+        if not data.get('__init__', False):
             body.extend([
                 BLANK_LINE,
                 BLANK_LINE,
@@ -64,8 +64,15 @@ class ComponentGenerator:
         if 'class_name' in data:
             python2 = data.get('python2', False)
             class_name = data['class_name']
+            inheritance = data.get('class_inheritance', [])
+            cla = data.get('class_level_arguments', [])
             body.extend([
-                cls.generate_class(class_name, python2),
+                cls.generate_class(
+                    class_name=class_name,
+                    inheritance=inheritance,
+                    class_level_arguments=cla,
+                    python2=python2,
+                ),
                 BLANK_LINE,
             ])
 
@@ -75,7 +82,8 @@ class ComponentGenerator:
                     cls.generate_method_stub(
                         method['name'],
                         method.get('args', []),
-                        method.get('kwargs', [])
+                        method.get('kwargs', []),
+                        method.get('additional', [])
                     ),
                     BLANK_LINE,
                 ])
@@ -83,7 +91,12 @@ class ComponentGenerator:
         return ''.join(body)
 
     @staticmethod
-    def generate_class(class_name, python2=False):
+    def generate_class(
+        class_name,
+        inheritance=None,
+        class_level_arguments=None,
+        python2=False,
+    ):
         """ Geneate a method stub for the given name, args and kwargs.
 
         Stub a method that will be in the style of standard python formatting:
@@ -96,21 +109,38 @@ class ComponentGenerator:
 
         Args:
             class_name (str): Name to apply to the class.
+            inheritance (list): A list of classes this class inherits from.
             python2 (boolean): If ``True`` add the Python2 style formatting
                 when generating the class. (object)
-
 
         Returns:
             str: That will represent the class with the desired parameters.
         """
 
-        python2_formatting = ''
-        if python2:
-            python2_formatting = '(object)'
+        if inheritance:
+            inheritance = '({0})'.format(', '.join(inheritance))
+        else:
+            inheritance = ''
+
+        if python2 and not inheritance:
+            inheritance = '(object)'
+
+        if class_level_arguments:
+            arguments = []
+            for cla in class_level_arguments:
+                arguments.extend([
+                    cla,
+                    BLANK_LINE,
+                ])
+            class_level_arguments = ''.join(arguments)
+
+        else:
+            class_level_arguments = ''
 
         return CLASS_TEMPLATE.format(
             class_name=class_name,
-            python2_formatting=python2_formatting,
+            inheritance=inheritance,
+            class_level_arguments=class_level_arguments,
         )
 
     @classmethod
@@ -118,7 +148,8 @@ class ComponentGenerator:
         cls,
         method_name,
         arguments=None,
-        kwarguments=None
+        kwarguments=None,
+        additional=None,
     ):
         """ Geneate a method stub for the given name, args and kwargs.
 
@@ -133,6 +164,8 @@ class ComponentGenerator:
             kwarguments (list): A list of ``tuples`` / ``list`` of
                 (``str``, ``str``) where the first string is the name of the
                 argument and the string is the default value.
+            additional (list): A list of additional lines to place in the
+                method.
 
         Returns:
             str: That will represent the method with the desired parameters.
@@ -147,16 +180,25 @@ class ComponentGenerator:
             arguments
         )
 
+        if not additional:
+            additional = '        pass\n'
+        else:
+            lines = []
+            for line in additional:
+                lines.extend([line, BLANK_LINE])
+            additional = ''.join(lines)
+
         return METHOD_TEMPLATE.format(
             method_name=method_name,
             arguments=formatted_arguments,
             kwarguments=formatted_kwarguments,
+            additional=additional
         )
 
     @staticmethod
     def _format_method_arguments(arguments):
-        if isinstance(arguments, (list, tuple, set)):
-            arguments = ', {}'.format(', '.join(arguments))
+        if arguments and isinstance(arguments, (list, tuple, set)):
+            arguments = ', {0}'.format(', '.join(arguments))
 
         else:
             arguments = ''
@@ -165,7 +207,7 @@ class ComponentGenerator:
 
     @staticmethod
     def _format_method_kwarguments(kwarguments, arguments):
-        if isinstance(kwarguments, (list, tuple, set)):
+        if kwarguments and isinstance(kwarguments, (list, tuple, set)):
             new_kwargs = []
 
             for kwarg in kwarguments:

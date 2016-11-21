@@ -6,6 +6,8 @@ from component_generator import ComponentGenerator
 
 class Test(TestCase):
 
+    maxDiff = None
+
     def test_generate_method_stub_no_args_no_kwargs(self):
         actual = ComponentGenerator.generate_method_stub('persist_evil_dead')
         actual = actual.replace('    ', '')
@@ -59,12 +61,64 @@ class Test(TestCase):
         actual = ComponentGenerator.generate_class('Ash', python2=True)
         actual = actual.replace('    ', '')
 
-        expected = 'class Ash(object):\n'
+        expected = 'class Ash(object):\n\n'
         self.assertEqual(actual, expected)
 
     def test_generate_class_new_class_style(self):
         actual = ComponentGenerator.generate_class('Ash', python2=False)
         actual = actual.replace('    ', '')
 
-        expected = 'class Ash:\n'
+        expected = 'class Ash:\n\n'
+        self.assertEqual(actual, expected)
+
+    def test_build_file_body(self):
+        data = {
+            'class_name': 'Component',
+            'class_inheritance': ['TestCase'],
+            'class_level_arguments': [
+                '{0}storage = ComponentPureMemory()'.format(' ' * 4),
+                '{0}_internal = None'.format(' ' * 4),
+            ],
+            'from_imports': [
+                ['unittest', 'TestCase'],
+                ['component.storage', 'ComponentPureMemory'],
+            ],
+            'imports': ['os', 'math'],
+            'methods': [{
+                'name': 'test_create_component',
+            }, {
+                'name': 'test_get_component_by_id',
+            }, {
+                'name': 'setUp',
+                'additional': [
+                    '{0}self.storage = ComponentPureMemory()'.format(' ' * 8),
+                ]
+            }, {
+                'name': 'tearDown',
+                'additional': [
+                    '{0}self.storage.wipe()'.format(' ' * 8),
+                ]
+            }]
+        }
+
+        actual = ComponentGenerator.build_file_body(data)
+        expected = ''.join([
+            '# -*- coding: utf-8 -*-\n',
+            'from component.storage import ComponentPureMemory\n',
+            'from unittest import TestCase\n',
+            'import math\n',
+            'import os\n',
+            '\n\n',
+            'class Component(TestCase):\n\n',
+            '    storage = ComponentPureMemory()\n',
+            '    _internal = None\n\n',
+            '    def test_create_component(self):\n',
+            '        pass\n\n',
+            '    def test_get_component_by_id(self):\n',
+            '        pass\n\n',
+            '    def setUp(self):\n',
+            '        self.storage = ComponentPureMemory()\n\n',
+            '    def tearDown(self):\n'
+            '        self.storage.wipe()\n\n'
+        ])
         self.assertEqual(actual, expected)
