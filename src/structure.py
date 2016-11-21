@@ -111,8 +111,16 @@ def build_logic_structure(component, py2=False):
         'methods': [
             {
                 'name': 'test_create_{0}'.format(lower_component),
+                'additional': [
+                    "{0}raise NotImplementedError"
+                    "('You must write this test!')".format(' ' * 8),
+                ]
             }, {
                 'name': 'test_get_{0}_by_id'.format(lower_component),
+                'additional': [
+                    "{0}raise NotImplementedError"
+                    "('You must write this test!')".format(' ' * 8),
+                ]
             }
         ]
     }
@@ -160,8 +168,9 @@ def build_logic_structure(component, py2=False):
 
     data = {
         'from_imports': [
-            ['{}.logic'.format(lower_component), logic_class_name]
-        ]
+            ['.logic'.format(lower_component), logic_class_name]
+        ],
+        '__init__': True,
     }
     create_file(
         os.path.join(module_path, '__init__.py'),
@@ -183,6 +192,14 @@ def build_storage_structure(component, py2=False):
         'class_name': storage_class_name,
         'methods': [{
             'name': '__init__'.format(lower_component),
+            'additional': [
+                '{0}self.storage = []'.format(' ' * 8),
+            ],
+        }, {
+            'name': 'wipe',
+            'additional': [
+                '{0}self.storage = []'.format(' ' * 8),
+            ],
         }, {
             'name': 'persist_{0}'.format(lower_component),
         }, {
@@ -206,8 +223,16 @@ def build_storage_structure(component, py2=False):
         'methods': [
             {
                 'name': 'test_persist_{0}'.format(lower_component),
+                'additional': [
+                    "{0}raise NotImplementedError"
+                    "('You must write this test!')".format(' ' * 8),
+                ]
             }, {
                 'name': 'test_retrieve_{0}_by_id'.format(lower_component),
+                'additional': [
+                    "{0}raise NotImplementedError"
+                    "('You must write this test!')".format(' ' * 8),
+                ]
             }
         ]
     }
@@ -255,10 +280,11 @@ def build_storage_structure(component, py2=False):
     data = {
         'from_imports': [
             [
-                '{}.storage.pure_memory'.format(lower_component),
+                '{0}.storage.pure_memory'.format(lower_component),
                 storage_class_name
             ]
-        ]
+        ],
+        '__init__': True,
     }
     create_file(
         os.path.join(module_path, '__init__.py'),
