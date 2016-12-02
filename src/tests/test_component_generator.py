@@ -61,14 +61,14 @@ class Test(TestCase):
         actual = ComponentGenerator.generate_class('Ash', python2=True)
         actual = actual.replace('    ', '')
 
-        expected = 'class Ash(object):\n\n'
+        expected = 'class Ash(object):\n'
         self.assertEqual(actual, expected)
 
     def test_generate_class_new_class_style(self):
         actual = ComponentGenerator.generate_class('Ash', python2=False)
         actual = actual.replace('    ', '')
 
-        expected = 'class Ash:\n\n'
+        expected = 'class Ash:\n'
         self.assertEqual(actual, expected)
 
     def test_build_file_body(self):
@@ -109,7 +109,7 @@ class Test(TestCase):
             'import math\n',
             'import os\n',
             '\n\n',
-            'class Component(TestCase):\n\n',
+            'class Component(TestCase):\n',
             '    storage = ComponentPureMemory()\n',
             '    _internal = None\n\n',
             '    def test_create_component(self):\n',
@@ -119,6 +119,6 @@ class Test(TestCase):
             '    def setUp(self):\n',
             '        self.storage = ComponentPureMemory()\n\n',
             '    def tearDown(self):\n'
-            '        self.storage.wipe()\n\n'
+            '        self.storage.wipe()\n'
         ])
         self.assertEqual(actual, expected)

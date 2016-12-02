@@ -6,7 +6,7 @@ ENCODING = '# -*- coding: utf-8 -*-\n'
 BLANK_LINE = '\n'
 IMPORT_TEMPLATE = 'import {import_name}'
 FROM_IMPORT_TEMPLATE = 'from {module_path} import {import_name}'
-CLASS_TEMPLATE = 'class {class_name}{inheritance}:\n\n{class_level_arguments}'
+CLASS_TEMPLATE = 'class {class_name}{inheritance}:{class_level_arguments}'
 METHOD_TEMPLATE = '    def {method_name}(self{arguments}{kwarguments}):\n{additional}'
 
 
@@ -88,7 +88,8 @@ class ComponentGenerator:
                     BLANK_LINE,
                 ])
 
-        return ''.join(body)
+        # Remove too many new lines at the end of the body of text.
+        return '\n'.join(''.join(body).rsplit('\n\n', 1))
 
     @staticmethod
     def generate_class(
@@ -126,7 +127,7 @@ class ComponentGenerator:
             inheritance = '(object)'
 
         if class_level_arguments:
-            arguments = []
+            arguments = [BLANK_LINE]
             for cla in class_level_arguments:
                 arguments.extend([
                     cla,
@@ -135,7 +136,7 @@ class ComponentGenerator:
             class_level_arguments = ''.join(arguments)
 
         else:
-            class_level_arguments = ''
+            class_level_arguments = BLANK_LINE
 
         return CLASS_TEMPLATE.format(
             class_name=class_name,
@@ -181,7 +182,7 @@ class ComponentGenerator:
         )
 
         if not additional:
-            additional = '        pass\n'
+            additional = '{0}pass\n'.format(' ' * 8)
         else:
             lines = []
             for line in additional:
