@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
+from collections import namedtuple
 import os
 
 import constants
 import templates
 
+Thing = namedtuple('Thing', ['prefix_mapping', 'arguments', 'kwarguments'])
 
 class StorageGenerator:
 
@@ -99,103 +101,62 @@ class StorageGenerator:
     def build_configuration(self):
         base_component_path = os.path.join(self.name_underscored_lowered)
 
-        for component, method_prefixes in self.logic_prefix_mapping.items():
-            sub_component_path = os.path.join(
-                base_component_path,
-                component,
-                '{0}.py'.format(self.name_underscored_lowered)
-            )
+        things = (
+            Thing(self.logic_prefix_mapping, self.logic_arguments, self.logic_kwarguments),
+            Thing(self.storage_prefix_mapping, self.storage_arguments, self.storage_kwarguments),
+        )
 
-            if self.logic_arguments:
-                method_prefixes.add(*list(self.logic_arguments.keys()))
-
-            if self.logic_kwarguments:
-                method_prefixes.add(*list(self.logic_kwarguments.keys()))
-
-            generated_class = self.generate_class(
-                suffix=component.title(),
-                method_prefixes=method_prefixes,
-                method_arguments=self.logic_arguments,
-                method_kwarguments=self.logic_kwarguments,
-                is_storage=False,
-            ).rstrip('\n\n')
-            self._config[sub_component_path] = generated_class
-
-            if self.use_abstract_component:
-                init_component_path = os.path.join(
+        for thing in things:
+            for component, method_prefixes in thing.prefix_mapping.items():
+                sub_component_path = os.path.join(
                     base_component_path,
                     component,
-                    '__init__.py',
-                )
-                self._config[init_component_path] = templates.ALL_TEMPLATE.format(
-                    encoding=constants.ENCODING,
-                    components='{0},'.format(self.name_underscored_lowered),
+                    '{0}.py'.format(self.name_underscored_lowered)
                 )
 
-            # Build test class(es).
-            component_tests_path = os.path.join(
-                base_component_path,
-                'tests',
-                component,
-                'test_{0}.py'.format(self.name_underscored_lowered)
-            )
-            generated_class = self.generate_class(
-                suffix='',
-                method_prefixes=method_prefixes,
-                method_arguments={},
-                method_kwarguments={},
-                is_test=True,
-            )
-            self._config[component_tests_path] = generated_class
+                if thing.arguments:
+                    method_prefixes.add(*list(thing.arguments.keys()))
 
-        for component, prefixes in self.storage_prefix_mapping.items():
-            sub_component_path = os.path.join(
-                base_component_path,
-                component,
-                '{0}.py'.format(self.name_underscored_lowered)
-            )
+                if thing.kwarguments:
+                    method_prefixes.add(*list(thing.kwarguments.keys()))
 
-            if self.storage_arguments:
-                method_prefixes.add(*list(self.storage_arguments.keys()))
+                generated_class = self.generate_class(
+                    suffix=component.title(),
+                    method_prefixes=method_prefixes,
+                    method_arguments=thing.arguments,
+                    method_kwarguments=thing.kwarguments,
+                    is_storage=False,
+                )#.rstrip('\n\n')
 
-            if self.storage_kwarguments:
-                method_prefixes.add(*list(self.storage_kwarguments.keys()))
+                self._config[sub_component_path] = generated_class
 
-            generated_class = self.generate_class(
-                suffix=component.title(),
-                method_prefixes=method_prefixes,
-                method_arguments=self.storage_arguments,
-                method_kwarguments=self.storage_kwarguments,
-                is_storage=False,
-            ).rstrip('\n\n')
-            self._config[sub_component_path] = generated_class
+                # Build __init__.py with __all__ for abstract inheritence.
+                if self.use_abstract_component:
+                    init_path = os.path.join(
+                        base_component_path,
+                        component,
+                        '__init__.py',
+                    )
+                    self._config[init_path] = templates.ALL_TEMPLATE.format(
+                        encoding=constants.ENCODING,
+                        components='{0},'.format(self.name_underscored_lowered),
+                    )
 
-            if self.use_abstract_component:
-                init_component_path = os.path.join(
+                # Build test class(es).
+                component_tests_path = os.path.join(
                     base_component_path,
+                    'tests',
                     component,
-                    '__init__.py',
+                    'test_{0}.py'.format(self.name_underscored_lowered)
                 )
-                self._config[init_component_path] = templates.ALL_TEMPLATE.format(
-                    encoding=constants.ENCODING,
-                    components='{0},'.format(self.name_underscored_lowered),
+                generated_class = self.generate_class(
+                    suffix=component.title(),
+                    method_prefixes=method_prefixes,
+                    method_arguments={},
+                    method_kwarguments={},
+                    is_test=True,
                 )
-
-            # Build test class(es).
-            component_tests_path = os.path.join(
-                base_component_path,
-                'tests',
-                component,
-                'test_{0}.py'.format(self.name_underscored_lowered)
-            )
-            generated_class = self.generate_class(
-                suffix='',
-                method_prefixes=method_prefixes,
-                method_arguments={},
-                method_kwarguments={},
-                is_test=True,
-            )
-            self._config[component_tests_path] = generated_class
+                self._config[component_tests_path] = generated_class
 
     def generate_class(
         self,
@@ -228,7 +189,7 @@ class StorageGenerator:
             if not is_storage:
                 inheritence = '(TestCase)'
 
-            name_titled = 'Test{0}'.format(self.name_titled)
+            name_titled = 'Test{0}{1}'.format(self.name_titled, suffix)
             from_imports = constants.TEST_CASE_FROM_IMPORTS
             method_arguments = {}
             method_kwarguments = {}
@@ -241,7 +202,7 @@ class StorageGenerator:
             method_kwarguments=method_kwarguments,
         )
 
-        return templates.FILE_TEMPLATE.format(
+        formatted = templates.FILE_TEMPLATE.format(
             encoding=constants.ENCODING,
             from_imports=from_imports,
             imports='',
@@ -249,7 +210,9 @@ class StorageGenerator:
             inheritence=inheritence,
             class_level_attributes='',
             methods=''.join(methods),
-        ).rstrip('\n\n')
+        ).rstrip('\n')
+
+        return '{0}\n'.format(formatted)
 
     def build_methods_template(
         self,
