@@ -1,13 +1,21 @@
 # -*- coding: utf-8 -*-
-from collections import namedtuple
+import logging
 import os
+from collections import namedtuple, defaultdict
 
-import constants
-import templates
+from component_generator import constants, templates
 
-Thing = namedtuple('Thing', ['prefix_mapping', 'arguments', 'kwarguments'])
 
-class StorageGenerator:
+logger = logging.getLogger(__name__)
+
+
+Subcomponent = namedtuple(
+    'Subcomponent',
+    ['prefix_mapping', 'arguments', 'kwarguments']
+)
+
+
+class ComponentGenerator:
 
     STORAGE_PREFIX_MAPPING = {
         'storage': set([
@@ -18,7 +26,7 @@ class StorageGenerator:
         ]),
     }
 
-    LOGIC_PREFIX_MAPPING ={
+    LOGIC_PREFIX_MAPPING = {
         'logic': set([
             'create_{0}',
             'get_{0}',
@@ -33,7 +41,7 @@ class StorageGenerator:
         ]),
     }
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-branches
         self,
         name_titled,
         name_underscored_lowered,
@@ -45,10 +53,8 @@ class StorageGenerator:
         logic_prefix_mapping=None,
         storage_prefix_mapping=None,
         storage_types=None,
-        build_on_init=False,
+        build_on_init=True,
     ):
-        """ Instantiate a Storage Generator.
-        """
         self.name_titled = name_titled
         self.name_underscored_lowered = name_underscored_lowered
         self.use_abstract_component = use_abstract_component
@@ -63,100 +69,112 @@ class StorageGenerator:
             )
             storage_types = ['pure_memory']
 
-        self.storage_types = storage_types
+        self._storage_types = storage_types
 
-        self.logic_prefix_mapping = self.LOGIC_PREFIX_MAPPING
+        self._logic_prefix_mapping = self.LOGIC_PREFIX_MAPPING
         if logic_prefix_mapping is not None:
-            self.logic_prefix_mapping = logic_prefix_mapping
+            self._logic_prefix_mapping = logic_prefix_mapping
 
-        self.storage_prefix_mapping = self.STORAGE_PREFIX_MAPPING
+        self._storage_prefix_mapping = self.STORAGE_PREFIX_MAPPING
         if storage_prefix_mapping is not None:
-            self.storage_prefix_mapping = storage_prefix_mapping
+            self._storage_prefix_mapping = storage_prefix_mapping
 
         if storage_arguments and isinstance(storage_arguments, dict):
-            self.storage_arguments = storage_arguments
+            self._storage_arguments = storage_arguments
         else:
-            self.storage_arguments = {}
+            self._storage_arguments = {}
 
         if storage_kwarguments and isinstance(storage_kwarguments, dict):
-            self.storage_kwarguments = storage_kwarguments
+            self._storage_kwarguments = storage_kwarguments
         else:
-            self.storage_kwarguments = {}
+            self._storage_kwarguments = {}
 
         if logic_arguments and isinstance(logic_arguments, dict):
-            self.logic_arguments = logic_arguments
+            self._logic_arguments = logic_arguments
         else:
-            self.logic_arguments = {}
+            self._logic_arguments = {}
 
         if logic_kwarguments and isinstance(logic_kwarguments, dict):
-            self.logic_kwarguments = logic_kwarguments
+            self._logic_kwarguments = logic_kwarguments
         else:
-            self.logic_kwarguments = {}
+            self._logic_kwarguments = {}
 
-        self._config = {}
-
+        self.config = {}
         if build_on_init:
             self.build_configuration()
 
     def build_configuration(self):
         base_component_path = os.path.join(self.name_underscored_lowered)
 
-        things = (
-            Thing(self.logic_prefix_mapping, self.logic_arguments, self.logic_kwarguments),
-            Thing(self.storage_prefix_mapping, self.storage_arguments, self.storage_kwarguments),
+        subcomponents = (
+            Subcomponent(
+                self._logic_prefix_mapping,
+                self._logic_arguments,
+                self._logic_kwarguments
+            ),
+            Subcomponent(
+                self._storage_prefix_mapping,
+                self._storage_arguments,
+                self._storage_kwarguments
+            ),
         )
 
-        for thing in things:
-            for component, method_prefixes in thing.prefix_mapping.items():
-                sub_component_path = os.path.join(
+        for subcomponent in subcomponents:
+            self._process_subcomponent(base_component_path, subcomponent)
+
+        self._add_missing_init_files()
+
+    def _process_subcomponent(self, base_component_path, subcomponent):
+        for component, method_prefixes in subcomponent.prefix_mapping.items():
+            sub_component_path = os.path.join(
+                base_component_path,
+                component,
+                '{0}.py'.format(self.name_underscored_lowered)
+            )
+
+            if subcomponent.arguments:
+                method_prefixes.add(*list(subcomponent.arguments.keys()))
+
+            if subcomponent.kwarguments:
+                method_prefixes.add(*list(subcomponent.kwarguments.keys()))
+
+            generated_class = self.generate_class(
+                suffix=component.title(),
+                method_prefixes=method_prefixes,
+                method_arguments=subcomponent.arguments,
+                method_kwarguments=subcomponent.kwarguments,
+                is_storage=False,
+            )
+
+            self.config[sub_component_path] = generated_class
+
+            # Build __init__.py with __all__ for abstract inheritence.
+            if self.use_abstract_component:
+                init_path = os.path.join(
                     base_component_path,
                     component,
-                    '{0}.py'.format(self.name_underscored_lowered)
+                    '__init__.py',
+                )
+                self.config[init_path] = templates.ALL_TEMPLATE.format(
+                    encoding=constants.ENCODING,
+                    components='{0},'.format(self.name_underscored_lowered),
                 )
 
-                if thing.arguments:
-                    method_prefixes.add(*list(thing.arguments.keys()))
-
-                if thing.kwarguments:
-                    method_prefixes.add(*list(thing.kwarguments.keys()))
-
-                generated_class = self.generate_class(
-                    suffix=component.title(),
-                    method_prefixes=method_prefixes,
-                    method_arguments=thing.arguments,
-                    method_kwarguments=thing.kwarguments,
-                    is_storage=False,
-                )#.rstrip('\n\n')
-
-                self._config[sub_component_path] = generated_class
-
-                # Build __init__.py with __all__ for abstract inheritence.
-                if self.use_abstract_component:
-                    init_path = os.path.join(
-                        base_component_path,
-                        component,
-                        '__init__.py',
-                    )
-                    self._config[init_path] = templates.ALL_TEMPLATE.format(
-                        encoding=constants.ENCODING,
-                        components='{0},'.format(self.name_underscored_lowered),
-                    )
-
-                # Build test class(es).
-                component_tests_path = os.path.join(
-                    base_component_path,
-                    'tests',
-                    component,
-                    'test_{0}.py'.format(self.name_underscored_lowered)
-                )
-                generated_class = self.generate_class(
-                    suffix=component.title(),
-                    method_prefixes=method_prefixes,
-                    method_arguments={},
-                    method_kwarguments={},
-                    is_test=True,
-                )
-                self._config[component_tests_path] = generated_class
+            # Build test class(es).
+            component_tests_path = os.path.join(
+                base_component_path,
+                'tests',
+                component,
+                'test_{0}.py'.format(self.name_underscored_lowered)
+            )
+            generated_class = self.generate_class(
+                suffix=component.title(),
+                method_prefixes=method_prefixes,
+                method_arguments={},
+                method_kwarguments={},
+                is_test=True,
+            )
+            self.config[component_tests_path] = generated_class
 
     def generate_class(
         self,
@@ -168,9 +186,6 @@ class StorageGenerator:
         is_storage=False,
     ):
         template = templates.METHOD_TEMPLATE
-        if is_test:
-            template = templates.TEST_METHOD_TEMPLATE
-
         name_titled = '{prefix}{suffix}'.format(
             prefix=self.name_titled,
             suffix=suffix
@@ -180,10 +195,11 @@ class StorageGenerator:
             inheritence = constants.ABSTRACT_INHERITENCE
             from_imports = constants.ABSTRACT_FROM_IMPORTS
         else:
-            inheritence=constants.OBJECT_INHERITENCE
+            inheritence = constants.OBJECT_INHERITENCE
             from_imports = ''
 
         if is_test:
+            template = templates.TEST_METHOD_TEMPLATE
             inheritence = '({0}Interface, TestCase)'.format(self.name_titled)
 
             if not is_storage:
@@ -208,10 +224,11 @@ class StorageGenerator:
             imports='',
             class_name=name_titled,
             inheritence=inheritence,
-            class_level_attributes='',
+            class_level_attributes='',  # TODO - also include leading spaces
             methods=''.join(methods),
         ).rstrip('\n')
 
+        # Add a new line to the end of the file.
         return '{0}\n'.format(formatted)
 
     def build_methods_template(
@@ -247,7 +264,8 @@ class StorageGenerator:
 
         return methods if methods else ['    pass']
 
-    def _format_kwargument_parameters(self, kwarguments):
+    @staticmethod
+    def _format_kwargument_parameters(kwarguments):
         params = []
         for param, default in kwarguments.items():
             params.append('{0}={1}'.format(param, default))
@@ -256,7 +274,8 @@ class StorageGenerator:
 
         return ''
 
-    def _format_docstring(self, arguments, kwarguments):
+    @staticmethod
+    def _format_docstring(arguments, kwarguments):
         parameters = arguments + list(kwarguments.keys())
         if parameters:
             params = ''
@@ -274,3 +293,21 @@ class StorageGenerator:
             )
 
         return ''
+
+    def _add_missing_init_files(self):
+        empty_init_file = templates.INIT_FILE_TEMPLATE.format(
+            encoding=constants.ENCODING,
+            from_imports='',
+            imports=''
+        )
+
+        files_and_paths = defaultdict(list)
+        for filepath in self.config:
+            base_path, filename = os.path.split(filepath)
+            files_and_paths[base_path].append(filename)
+
+        for base_path, filenames in files_and_paths.items():
+            if '__init__.py' not in filenames:
+
+                init_file_path = os.path.join(base_path, '__init__.py')
+                self.config[init_file_path] = empty_init_file
