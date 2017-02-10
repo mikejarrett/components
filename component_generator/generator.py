@@ -63,7 +63,7 @@ class ComponentGenerator:
             storage_types = ['pure_memory']
 
         if not isinstance(storage_types, (list, dict)):
-            print(
+            logger.debug(
                 '`storage_types` is not a list or dict. '
                 'Setting to `[pure_memroy]`'
             )

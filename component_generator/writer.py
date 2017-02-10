@@ -4,7 +4,7 @@ import logging
 import os
 
 
-logger = logging.getLogger(__name__)
+from component_generator.logger import logger
 
 
 def mkdir_p(path):
@@ -21,14 +21,16 @@ def mkdir_p(path):
 
 
 def safe_open_w(path):
-    """ Open "path" for writing, creating any parent directories as needed. """
+    """
+    Open "path" for writing, creating any parent directories as needed.
+    """
     mkdir_p(os.path.dirname(path))
     return open(path, 'w')
 
 
 def write_config(generator_config):
     for path, data in generator_config.items():
-        print('Writing: ', path)
+        logger.debug('Writing: %s', path)
         try:
             with safe_open_w(path) as file_:
                 file_.write(data)
