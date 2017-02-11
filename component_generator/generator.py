@@ -3,7 +3,7 @@ import logging
 import os
 from collections import namedtuple, defaultdict
 
-from component_generator import constants, templates
+from component_generator import constants, templates, utils
 
 
 logger = logging.getLogger(__name__)
@@ -46,30 +46,17 @@ class ComponentGenerator:
         name_titled,
         name_underscored_lowered,
         use_abstract_component=True,
-        storage_arguments=None,
-        storage_kwarguments=None,
         logic_arguments=None,
         logic_kwarguments=None,
         logic_prefix_mapping=None,
+        storage_arguments=None,
+        storage_kwarguments=None,
         storage_prefix_mapping=None,
-        storage_types=None,
         build_on_init=True,
     ):
         self.name_titled = name_titled
         self.name_underscored_lowered = name_underscored_lowered
         self.use_abstract_component = use_abstract_component
-
-        if storage_types is None:
-            storage_types = ['pure_memory']
-
-        if not isinstance(storage_types, (list, dict)):
-            logger.debug(
-                '`storage_types` is not a list or dict. '
-                'Setting to `[pure_memroy]`'
-            )
-            storage_types = ['pure_memory']
-
-        self._storage_types = storage_types
 
         self._logic_prefix_mapping = self.LOGIC_PREFIX_MAPPING
         if logic_prefix_mapping is not None:
@@ -104,30 +91,35 @@ class ComponentGenerator:
             self.build_configuration()
 
     def build_configuration(self):
-        base_component_path = os.path.join(self.name_underscored_lowered)
+        base_path = os.path.join('component') #self.name_underscored_lowered)
 
         subcomponents = (
             Subcomponent(
                 self._logic_prefix_mapping,
                 self._logic_arguments,
-                self._logic_kwarguments
+                self._logic_kwarguments,
             ),
             Subcomponent(
                 self._storage_prefix_mapping,
                 self._storage_arguments,
-                self._storage_kwarguments
+                self._storage_kwarguments,
             ),
         )
 
         for subcomponent in subcomponents:
-            self._process_subcomponent(base_component_path, subcomponent)
+            self._process_subcomponent(base_path, subcomponent)
 
-        self._add_missing_init_files()
+    def _get_suffix(self, component):
+        return ''.join(
+            utils.clean_raw_name(part).titled_no_underscore
+            for part in reversed(component.split(os.path.sep))
+        )
 
-    def _process_subcomponent(self, base_component_path, subcomponent):
+    def _process_subcomponent(self, base_path, subcomponent):
         for component, method_prefixes in subcomponent.prefix_mapping.items():
+
             sub_component_path = os.path.join(
-                base_component_path,
+                base_path,
                 component,
                 '{0}.py'.format(self.name_underscored_lowered)
             )
@@ -138,8 +130,9 @@ class ComponentGenerator:
             if subcomponent.kwarguments:
                 method_prefixes.add(*list(subcomponent.kwarguments.keys()))
 
+            suffix = self._get_suffix(component)
             generated_class = self.generate_class(
-                suffix=component.title(),
+                suffix=suffix,
                 method_prefixes=method_prefixes,
                 method_arguments=subcomponent.arguments,
                 method_kwarguments=subcomponent.kwarguments,
@@ -151,18 +144,18 @@ class ComponentGenerator:
             # Build __init__.py with __all__ for abstract inheritence.
             if self.use_abstract_component:
                 init_path = os.path.join(
-                    base_component_path,
+                    base_path,
                     component,
                     '__init__.py',
                 )
                 self.config[init_path] = templates.ALL_TEMPLATE.format(
                     encoding=constants.ENCODING,
-                    components='{0},'.format(self.name_underscored_lowered),
+                    components="", #'{0}',".format(self.name_underscored_lowered),
                 )
 
             # Build test class(es).
             component_tests_path = os.path.join(
-                base_component_path,
+                base_path,
                 'tests',
                 component,
                 'test_{0}.py'.format(self.name_underscored_lowered)
@@ -294,7 +287,8 @@ class ComponentGenerator:
 
         return ''
 
-    def _add_missing_init_files(self):
+    @staticmethod
+    def build_init_files(config, use_abstract_component=True):
         empty_init_file = templates.INIT_FILE_TEMPLATE.format(
             encoding=constants.ENCODING,
             from_imports='',
@@ -302,12 +296,35 @@ class ComponentGenerator:
         )
 
         files_and_paths = defaultdict(list)
-        for filepath in self.config:
+        for filepath in config:
             base_path, filename = os.path.split(filepath)
             files_and_paths[base_path].append(filename)
 
         for base_path, filenames in files_and_paths.items():
-            if '__init__.py' not in filenames:
+            init_file_path = os.path.join(base_path, '__init__.py')
 
-                init_file_path = os.path.join(base_path, '__init__.py')
-                self.config[init_file_path] = empty_init_file
+            if '__init__.py' not in filenames:
+                logger.debug('Generating: %s', init_file_path)
+                config[init_file_path] = empty_init_file
+
+            elif '__init__.py' in filenames and use_abstract_component:
+                logger.debug('Generating __all__: %s', init_file_path)
+
+                files = []
+                for file_ in filenames:
+                    if file_ == '__init__.py':
+                        continue
+
+                    files.append(
+                        "{spaces}'{name}',".format(
+                            spaces=constants.FOUR_SPACES,
+                            name=os.path.splitext(file_)[0]
+                        )
+                    )
+
+                config[init_file_path] = templates.ALL_TEMPLATE.format(
+                    encoding=constants.ENCODING,
+                    components='\n'.join(files)
+                )
+
+        return config

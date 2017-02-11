@@ -11,6 +11,7 @@ Names = namedtuple(
     'Names',
     [
         'titled',
+        'titled_no_underscore',
         'underscored_lower',
         'underscored_titled',
     ]
@@ -29,8 +30,10 @@ def clean_raw_name(raw_name):
     cleaned = clean_string(raw_name)
     words = cleaned.split(' ')
 
+    titled = ''.join([word.title() for word in words])
     return Names(
-        titled=''.join([word.title() for word in words]),
+        titled=titled,
+        titled_no_underscore=titled.replace('_', ''),
         underscored_lower='_'.join([word.lower() for word in words]),
         underscored_titled='_'.join([word.title() for word in words]),
     )

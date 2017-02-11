@@ -28,4 +28,4 @@ TEST_METHOD_TEMPLATE = """\
 
 """
 
-ALL_TEMPLATE = """{encoding}\n__all__ = [\n    {components}\n]\n"""
+ALL_TEMPLATE = """{encoding}__all__ = [\n{components}\n]\n"""

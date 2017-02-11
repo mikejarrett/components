@@ -7,7 +7,9 @@ Attempt to reduce the bolierplate code that is written almost everyday.
 TODO
 ----
 
-- [] Generate component in current directory, not library directory
-- [] Add argparse / optparse 'ing
+- [X] Add argparse / optparse 'ing
+- [X] Allow multiple componets to be generated simultaneously
 - [] Allow defining class level attributres
-- [] Allow multiple componets to be generated simultaneously?
+- [] Generate component in current directory, not library directory
+- [] Implement injection setup
+- [] Implement test interfaces
