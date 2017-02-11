@@ -52,7 +52,6 @@ class ComponentGenerator:
         storage_arguments=None,
         storage_kwarguments=None,
         storage_prefix_mapping=None,
-        build_on_init=True,
     ):
         self.name_titled = name_titled
         self.name_underscored_lowered = name_underscored_lowered
@@ -87,8 +86,7 @@ class ComponentGenerator:
             self._logic_kwarguments = {}
 
         self.config = {}
-        if build_on_init:
-            self.build_configuration()
+        self.build_configuration()
 
     def build_configuration(self):
         base_path = os.path.join('component') #self.name_underscored_lowered)
@@ -288,7 +286,7 @@ class ComponentGenerator:
         return ''
 
     @staticmethod
-    def build_init_files(config, use_abstract_component=True):
+    def build_init_files_for_config(config, use_abstract_component=True):
         empty_init_file = templates.INIT_FILE_TEMPLATE.format(
             encoding=constants.ENCODING,
             from_imports='',
@@ -328,3 +326,16 @@ class ComponentGenerator:
                 )
 
         return config
+
+    @classmethod
+    def build_storage_prefix_mapping(cls, storages):
+        storage_prefix_mapping = {}
+        prefixes = cls.STORAGE_PREFIX_MAPPING['storage']
+        for storage in storages + ['pure_memory']:
+            path = os.path.join(
+                'storage',
+                utils.clean_raw_name(storage).underscored_lower,
+            )
+            storage_prefix_mapping[path] = prefixes
+
+        return storage_prefix_mapping
