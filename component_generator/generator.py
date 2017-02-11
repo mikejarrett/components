@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from copy import deepcopy
+import json
 import logging
 import os
 from collections import namedtuple, defaultdict
@@ -41,49 +43,27 @@ class ComponentGenerator:
         ]),
     }
 
-    def __init__(  # pylint: disable=too-many-branches
+    def __init__(
         self,
         name_titled,
         name_underscored_lowered,
+        storage_prefix_mapping,
+        logic_arguments,
+        logic_kwarguments,
+        storage_arguments,
+        storage_kwarguments,
         use_abstract_component=True,
-        logic_arguments=None,
-        logic_kwarguments=None,
-        logic_prefix_mapping=None,
-        storage_arguments=None,
-        storage_kwarguments=None,
-        storage_prefix_mapping=None,
     ):
         self.name_titled = name_titled
         self.name_underscored_lowered = name_underscored_lowered
         self.use_abstract_component = use_abstract_component
 
-        self._logic_prefix_mapping = self.LOGIC_PREFIX_MAPPING
-        if logic_prefix_mapping is not None:
-            self._logic_prefix_mapping = logic_prefix_mapping
+        self._storage_prefix_mapping = storage_prefix_mapping
+        self._storage_arguments = storage_arguments
+        self._storage_kwarguments = storage_kwarguments
 
-        self._storage_prefix_mapping = self.STORAGE_PREFIX_MAPPING
-        if storage_prefix_mapping is not None:
-            self._storage_prefix_mapping = storage_prefix_mapping
-
-        if storage_arguments and isinstance(storage_arguments, dict):
-            self._storage_arguments = storage_arguments
-        else:
-            self._storage_arguments = {}
-
-        if storage_kwarguments and isinstance(storage_kwarguments, dict):
-            self._storage_kwarguments = storage_kwarguments
-        else:
-            self._storage_kwarguments = {}
-
-        if logic_arguments and isinstance(logic_arguments, dict):
-            self._logic_arguments = logic_arguments
-        else:
-            self._logic_arguments = {}
-
-        if logic_kwarguments and isinstance(logic_kwarguments, dict):
-            self._logic_kwarguments = logic_kwarguments
-        else:
-            self._logic_kwarguments = {}
+        self._logic_arguments = logic_arguments
+        self._logic_kwarguments = logic_kwarguments
 
         self.config = {}
         self.build_configuration()
@@ -93,7 +73,7 @@ class ComponentGenerator:
 
         subcomponents = (
             Subcomponent(
-                self._logic_prefix_mapping,
+                self.LOGIC_PREFIX_MAPPING,
                 self._logic_arguments,
                 self._logic_kwarguments,
             ),
@@ -339,3 +319,81 @@ class ComponentGenerator:
             storage_prefix_mapping[path] = prefixes
 
         return storage_prefix_mapping
+
+#     @classmethod
+#     def build_logic_prefix_mapping(cls, logic_methods, component_name):
+#         try:
+#             logic_methods = json.loads(logic_methods)
+#         except ValueError as err:
+#             logger.warning(
+#                 'Got "%s" when attempting to decode -- %s --. Ignoring '
+#                 '`logic_methods` and setting to {}',
+#                 str(err),
+#                 logic_methods
+#             )
+#             logic_methods = {}
+
+#         methods = logic_methods.get(component_name, [])
+#         if isinstance(methods, (list, set, tuple)):
+#             new_methods = set(methods)
+#         else:
+#             new_methods = set([methods])
+
+#         logic_prefix_mapping = {}
+#         for component, methods in cls.LOGIC_PREFIX_MAPPING.items():
+#             methods.update(new_methods)
+#             logic_prefix_mapping[component] = methods
+
+#         return logic_prefix_mapping
+
+    @classmethod
+    def build_arguments(cls, arguments, component_name):
+        try:
+            methods = json.loads(arguments)
+        except ValueError as err:
+            logger.warning(
+                'Got "%s" when attempting to decode -- %s --. Ignoring '
+                '`arguments` and setting to {}',
+                str(err),
+                methods
+            )
+            methods = {}
+
+        method_definitions = methods.get(component_name, {})
+        method_definitions_copy = deepcopy(method_definitions)
+        for method, args in method_definitions_copy.items():
+            if not isinstance(args, (list, set)):
+                method_definitions[method] = [args]
+
+        return method_definitions
+
+    @classmethod
+    def build_kwarguments(cls, kwarguments, component_name):
+        try:
+            methods = json.loads(kwarguments)
+        except ValueError as err:
+            logger.warning(
+                'Got "%s" when attempting to decode -- %s --. Ignoring '
+                '`kwarguments` and setting to {}',
+                str(err),
+                kwarguments
+            )
+            return {}
+
+        method_definitions = methods.get(component_name, {})
+        if not isinstance(method_definitions, dict):
+            logger.warning('Logic kwarguments not in correct format.')
+            return {}
+
+        method_definitions_copy = deepcopy(method_definitions)
+        for method, args in method_definitions_copy.items():
+            if not isinstance(args, dict):
+                logger.warning(
+                    'Removing `%s` from kwarguments because its key-value '
+                    'pairs not presented as a dictionary. (%s)',
+                    method,
+                    args,
+                )
+                del method_definitions[method]
+
+        return method_definitions
