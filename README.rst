@@ -15,3 +15,4 @@ TODO
 - [] Implement test interfaces
 - [] Expand README to show examples and a more robust explanation of what
   problem(s) this library solves
+- [] Make it publishable to PyPI
