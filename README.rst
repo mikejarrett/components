@@ -13,3 +13,5 @@ TODO
 - [X] Generate component in current directory, not library directory
 - [] Implement injection setup
 - [] Implement test interfaces
+- [] Expand README to show examples and a more robust explanation of what
+  problem(s) this library solves
