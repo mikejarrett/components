@@ -29,13 +29,13 @@ def parse_args(args):
         default='{}',
         help='Add additional logic methods and kwarguments',
     )
-    # parser.add_argument(
-    #     '-l',
-    #     '--logic-methods',
-    #     nargs='?',
-    #     default='{}',
-    #     help='Add additional logic methods',
-    # )
+    parser.add_argument(
+        '-p',
+        '--path',
+        nargs='?',
+        default=None,
+        help='Where to generate the component.',
+    )
     parser.add_argument(
         '-r',
         '--storage-arguments',

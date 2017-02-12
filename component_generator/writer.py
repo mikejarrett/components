@@ -3,9 +3,7 @@ import errno
 import logging
 import os
 
-
-from component_generator.logger import logger
-
+logger = logging.getLogger(__name__)
 
 def mkdir_p(path):
     """ Mimic *nix 'mkdir -p'. """
