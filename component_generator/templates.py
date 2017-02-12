@@ -18,13 +18,13 @@ METHOD_DOCSTRING = '''\
 
 METHOD_TEMPLATE = """\
     def {method_name}(self{arguments}{kwarguments}):
-        {docstring}raise NotImplmented('Please implement: {method_name}')
+        {docstring}raise NotImplementedError('Please implement: {method_name}')
 
 """
 
 TEST_METHOD_TEMPLATE = """\
     def test_{method_name}(self):
-        raise NotImplmented('Please implement: test_{method_name}')
+        raise NotImplementedError('Please implement: test_{method_name}')
 
 """
 

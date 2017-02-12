@@ -76,7 +76,7 @@ class ComponentGenerator:
     def _get_suffix(self, component):
         return ''.join(
             utils.clean_raw_name(part).titled_no_underscore
-            for part in reversed(component.split(os.path.sep))
+            for part in reversed(component.split(os.sep))
         )
 
     def _process_subcomponent(self, base_path, subcomponent):
@@ -125,7 +125,7 @@ class ComponentGenerator:
                 'test_{0}.py'.format(self.name_underscored_lowered)
             )
             generated_class = self.generate_class(
-                suffix=component.title(),
+                suffix=suffix,
                 method_prefixes=method_prefixes,
                 method_arguments={},
                 method_kwarguments={},
