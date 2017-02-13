@@ -161,7 +161,7 @@ def build_init_files_for_config(config, use_abstract_component=True):
         if 'component' in filepath_list:
             component_index = filepath_list.index('component')
 
-            path = os.path.join(os.sep, *filepath_list[:component_index])
+            path = os.path.join(*filepath_list[:component_index])
 
             for index, __ in enumerate(filepath_list[component_index:]):
                 index += 1
