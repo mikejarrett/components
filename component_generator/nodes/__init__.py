@@ -1,12 +1,70 @@
 # -*- coding: utf-8 -*-
+class Combiner(object):
+
+    def __init__(self, **kwargs):
+        self._names_titled = kwargs.get('names_titled', [])
+        self._names_underscored_lowered = kwargs.get('names_underscored_lowered', [])
+        self._logic_prefix_mapping = kwargs.get('logic_prefix_mapping', {})
+        self._storage_prefix_mapping = kwargs.get('storage_prefix_mapping', {})
+        self._path = kwargs.get('path', '')
+
+    def build(self):
+        root_package = Package('blah')
+        for package, methods in self._logic_prefix_mapping.items():
+            # Package(logic)
+            # Package(client)
+            package = Package(package)
+
+            for name in self._names_underscored_lowered:
+                # Klass(Foo)
+                klass = Klass(name)
+
+                for method in methods:
+                    # Method(create_{0})
+                    # Method(update_{0})
+                    # ...
+                    klass.add_method(Method(method))
+
+                # Module(foo.py)
+                module = Module(name)
+                package.add_module(module)
+
+        for package, methods in self._storage_prefix_mapping.items():
+            # Package(storage)
+            package = Package(package)
+
+            for name in self._names_underscored_lowered:
+                # Klass(Foo)
+                klass = Klass(name)
+
+                for method in methods:
+                    # Method(persist_{0})
+                    # Method(update_{0})
+                    # ...
+                    klass.add_method(Method(method))
+
+                # Module(foo.py)
+                module = Module(name)
+                package.add_module(module)
+
+            root_package.add_subpackage(package)
+
+
 class Package(object):
 
     def __init__(self, package_name):
         self.package_name = package_name
         self._modules = []
+        self._sub_packages = []
 
     def add_module(self, module):
         self._modules.append(module)
+
+    def add_subpackage(self, package):
+        self._sub_packages.append(package)
+
+    def build(self):
+        pass
 
 
 class Module(object):
@@ -50,7 +108,7 @@ class Method(object):
         self._kwarguments[key] = value
 
 
-# ###
+######
 # component_loader bar foo
 
 
@@ -81,7 +139,6 @@ class Method(object):
 # storage_package = Package(storage)
 # storage_package.add_subpackage(bar_package)
 # storage_package.add_subpackage(foo_package)
-
 
 # component_package = Package(component)
 # component_package.add_subpackage(storage_package)
