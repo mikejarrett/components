@@ -1,11 +1,6 @@
 # -*- coding: utf-8 -*-
-FILE_TEMPLATE = """\
-{encoding}{from_imports}{imports}
-
-class {class_name}{inheritence}:
-{class_level_attributes}
-{methods}
-"""
+from component_generator import constants
+from component_generator.templates import FILE_TEMPLATE
 
 
 class Klass(object):
@@ -27,7 +22,7 @@ class Klass(object):
     def build(self):
         methods = [method.build() for method in self._methods]
         if not methods:
-            methods = ['    pass']  # FIXME constants.FOUR_SPACES
+            methods = ['{0}pass'.format(constants.FOUR_SPACES)]
 
         from_imports = self._get_from_imports()
         imports = self._get_imports()
@@ -40,7 +35,7 @@ class Klass(object):
             imports=imports,
             class_name=class_name,
             inheritence=inheritence,
-            class_level_attributes='',  # TODO - also include leading spaces
+            class_level_attributes='',  # TODO
             methods=''.join(methods),
         ).rstrip('\n')
 

@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
-ALL_TEMPLATE = """{encoding}__all__ = [\n{components}\n]\n"""
-INIT_FILE_TEMPLATE = """{encoding}{from_imports}{imports}\n"""
+from component_generator.templates import ALL_TEMPLATE, INIT_FILE_TEMPLATE
 
 
 class Module(object):  # A file -- foo.py

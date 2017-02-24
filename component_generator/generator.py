@@ -1,252 +1,177 @@
 # -*- coding: utf-8 -*-
-from copy import deepcopy
-import json
-import logging
-import os
-from collections import namedtuple, defaultdict
-
-from component_generator import constants, templates, utils
-
-try:
-    from os import getcwdu as getcwd
-except ImportError:  # Hurray we're using Python 3!
-    from os import getcwd
+from component_generator.structures import Klass, Method, Module, Package
+from component_generator import constants
 
 
-logger = logging.getLogger(__name__)
+class Generator(object):
 
+    def __init__(self, **kwargs):
+        self._names = kwargs.get('names', [])
+        self._api_methods = constants.LOGIC_METHODS
+        self._storage_methods = constants.STORAGE_METHODS
+        self._path = kwargs.get('path', '')
+        self._storage_types = kwargs.get('storage_types', ['pure_memory'])
+        self._additional_methods = kwargs.get('additional', {})
 
-Subcomponent = namedtuple(
-    'Subcomponent',
-    ['prefix_mapping', 'arguments', 'kwarguments']
-)
+        self.root_package_name = kwargs.get('root_package_name', 'component')
 
+        self.blank_init_module = Module('__init__')
 
-class ComponentGenerator:
+    def build(self):
+        root_test_package = Package('tests')
+        root_test_package.add_file(self.blank_init_module)
 
-    def __init__(
-        self,
-        name_titled,
-        name_underscored_lowered,
-        storage_prefix_mapping,
-        logic_arguments,
-        logic_kwarguments,
-        storage_arguments,
-        storage_kwarguments,
-        use_abstract_component=True,
-        path=None,
-    ):
-        self.name_titled = name_titled
-        self.name_underscored_lowered = name_underscored_lowered
-        self.use_abstract_component = use_abstract_component
+        root_package = Package(self.root_package_name)
+        root_package.add_subpackage(root_test_package)
+        root_package.add_file(self.blank_init_module)
 
-        self._storage_prefix_mapping = storage_prefix_mapping
-        self._storage_arguments = storage_arguments
-        self._storage_kwarguments = storage_kwarguments
-
-        self._logic_arguments = logic_arguments
-        self._logic_kwarguments = logic_kwarguments
-
-        self.path = path
-        if path is None:
-            self.path = getcwd()
-
-        self.config = {}
-        self.build_configuration()
-
-    def build_configuration(self):
-        base_path = os.path.join(os.path.normpath(self.path), 'component')
-
-        subcomponents = (
-            Subcomponent(
-                constants.LOGIC_PREFIX_MAPPING,
-                self._logic_arguments,
-                self._logic_kwarguments,
-            ),
-            Subcomponent(
-                self._storage_prefix_mapping,
-                self._storage_arguments,
-                self._storage_kwarguments,
-            ),
+        root_package, root_test_package = self._build_api_package(
+            root_package=root_package,
+            root_test_package=root_test_package,
         )
 
-        for subcomponent in subcomponents:
-            self._process_subcomponent(base_path, subcomponent)
-
-    def _get_suffix(self, component):
-        return ''.join(
-            utils.clean_raw_name(part).titled_no_underscore
-            for part in reversed(component.split(os.sep))
+        root_package, __ = self._build_storage_package(
+            root_package=root_package,
+            root_test_package=root_test_package,
         )
 
-    def _process_subcomponent(self, base_path, subcomponent):
-        for component, method_prefixes in subcomponent.prefix_mapping.items():
+        root_package.build()
 
-            sub_component_path = os.path.join(
-                base_path,
-                component,
-                '{0}.py'.format(self.name_underscored_lowered)
-            )
+        return root_package
 
-            if subcomponent.arguments:
-                method_prefixes.add(*list(subcomponent.arguments.keys()))
+    def _build_api_package(self, root_package, root_test_package):
+        for package, methods in self._api_methods.items():
+            api_package = Package(package)
+            api_test_package = Package(package)
+            init_module = Module('__init__')
 
-            if subcomponent.kwarguments:
-                method_prefixes.add(*list(subcomponent.kwarguments.keys()))
+            for name in self._names:
+                klass = Klass(name, package)
+                test_klass = Klass(name, package, test=True)
 
-            suffix = self._get_suffix(component)
-            generated_class = self.generate_class(
-                suffix=suffix,
-                method_prefixes=method_prefixes,
-                method_arguments=subcomponent.arguments,
-                method_kwarguments=subcomponent.kwarguments,
-                is_storage=False,
-            )
+                module = Module(name.name_underscored_lowered)
+                test_module = Module(name.name_underscored_lowered, test=True)
 
-            self.config[sub_component_path] = generated_class
+                for method in methods:
+                    method_ = Method(
+                        method,
+                        name.name_underscored_lowered,
+                    )
+                    klass.add_method(method_)
 
-            # Build __init__.py with __all__ for abstract inheritence.
-            if self.use_abstract_component:
-                init_path = os.path.join(
-                    base_path,
-                    component,
-                    '__init__.py',
-                )
-                self.config[init_path] = templates.ALL_TEMPLATE.format(
-                    encoding=constants.ENCODING,
-                    components="", #'{0}',".format(self.name_underscored_lowered),
-                )
+                    test_method_ = Method(
+                        method,
+                        name.name_underscored_lowered,
+                        test=True,
+                    )
+                    test_klass.add_method(test_method_)
 
-            # Build test class(es).
-            component_tests_path = os.path.join(
-                base_path,
-                'tests',
-                component,
-                'test_{0}.py'.format(self.name_underscored_lowered)
-            )
-            generated_class = self.generate_class(
-                suffix=suffix,
-                method_prefixes=method_prefixes,
-                method_arguments={},
-                method_kwarguments={},
-                is_test=True,
-            )
-            self.config[component_tests_path] = generated_class
+                additional_methods = self._additional_methods.get(name.raw, {})
+                for method, args_kwargs in additional_methods.items():
+                    method_ = self._build_method_args_kwargs(
+                        Method(
+                            method,
+                            name.name_underscored_lowered,
+                        ),
+                        args_kwargs
+                    )
 
-    def generate_class(
-        self,
-        suffix,
-        method_prefixes,
-        method_arguments,
-        method_kwarguments,
-        is_test=False,
-        is_storage=False,
-    ):
-        template = templates.METHOD_TEMPLATE
-        name_titled = '{prefix}{suffix}'.format(
-            prefix=self.name_titled,
-            suffix=suffix
-        )
+                    klass.add_method(method_)
 
-        if self.use_abstract_component:
-            inheritence = constants.ABSTRACT_INHERITENCE
-            from_imports = constants.ABSTRACT_FROM_IMPORTS
-        else:
-            inheritence = constants.OBJECT_INHERITENCE
-            from_imports = ''
+                    test_method_ = Method(
+                        method,
+                        name.name_underscored_lowered,
+                        test=True,
+                    )
+                    test_klass.add_method(test_method_)
 
-        if is_test:
-            template = templates.TEST_METHOD_TEMPLATE
-            inheritence = '({0}Interface, TestCase)'.format(self.name_titled)
+                module.add_class(klass)
+                api_package.add_file(module)
 
-            if not is_storage:
-                inheritence = '(TestCase)'
+                test_module.add_class(test_klass)
+                api_test_package.add_file(test_module)
 
-            name_titled = 'Test{0}{1}'.format(self.name_titled, suffix)
-            from_imports = constants.TEST_CASE_FROM_IMPORTS
-            method_arguments = {}
-            method_kwarguments = {}
+                init_module.add_all_declaration(klass)
 
-        methods = self.build_methods_template(
-            underscored_lower=self.name_underscored_lowered,
-            template=template,
-            method_prefixes=method_prefixes,
-            method_arguments=method_arguments,
-            method_kwarguments=method_kwarguments,
-        )
+            api_package.add_file(init_module)
 
-        formatted = templates.FILE_TEMPLATE.format(
-            encoding=constants.ENCODING,
-            from_imports=from_imports,
-            imports='',
-            class_name=name_titled,
-            inheritence=inheritence,
-            class_level_attributes='',  # TODO - also include leading spaces
-            methods=''.join(methods),
-        ).rstrip('\n')
+            # Add built api_package to root_package.
+            root_package.add_subpackage(api_package)
 
-        # Add a new line to the end of the file.
-        return '{0}\n'.format(formatted)
+            root_test_package.add_subpackage(api_test_package)
 
-    def build_methods_template(
-        self,
-        underscored_lower,
-        template,
-        method_prefixes,
-        method_arguments,
-        method_kwarguments,
-    ):
-        methods = []
-        for prefix in method_prefixes:
-            arguments = method_arguments.get(prefix, [])
-            kwarguments = method_kwarguments.get(prefix, {})
+        return root_package, root_test_package
 
-            method_name = prefix.format(underscored_lower)
+    def _build_storage_package(self, root_package, root_test_package):
+        for package, methods in self._storage_methods.items():
+            storage_package = Package(package)
+            storage_package.add_file(self.blank_init_module)
 
-            arguments_docstring = self._format_docstring(
-                arguments=arguments,
-                kwarguments=kwarguments,
-            )
-            arg_string = ''
-            if arguments:
-                arg_string = ', {0}'.format(', '.join(arguments))
+            test_package = Package(package)
 
-            method = template.format(
-                method_name=method_name,
-                arguments=arg_string,
-                kwarguments=self._format_kwargument_parameters(kwarguments),
-                docstring=arguments_docstring,
-            )
-            methods.append(method)
+            for storage_type in self._storage_types:
+                package = Package(storage_type)
 
-        return methods if methods else ['    pass']
+                for name in self._names:
+                    klass = Klass(name, storage_type)
+                    test_klass = Klass(name, storage_type, test=True)
 
-    @staticmethod
-    def _format_kwargument_parameters(kwarguments):
-        params = []
-        for param, default in kwarguments.items():
-            params.append('{0}={1}'.format(param, default))
+                    module = Module(name.name_underscored_lowered)
+                    test_module = Module(
+                        name.name_underscored_lowered,
+                        test=True
+                    )
 
-            return ', {0}'.format(', '.join(params))
+                    for method in methods:
+                        method_ = Method(method, name.name_underscored_lowered)
+                        klass.add_method(method_)
 
-        return ''
+                        test_method_ = Method(
+                            method,
+                            name.name_underscored_lowered,
+                            test=True
+                        )
+                        test_klass.add_method(test_method_)
 
-    @staticmethod
-    def _format_docstring(arguments, kwarguments):
-        parameters = arguments + list(kwarguments.keys())
-        if parameters:
-            params = ''
-            for param in parameters:
-                params += '{0}{1} (TODO):\n'.format(
-                    constants.TWELVE_SPACES,
-                    param
-                )
+                    for method in self._additional_methods.get(name.raw, {}):
+                        method_ = self._build_method_args_kwargs(
+                            Method(method, name.name_underscored_lowered),
+                            []
+                        )
 
-            params.rstrip('\n')
+                        klass.add_method(method_)
 
-            return '{0}{1}'.format(
-                templates.METHOD_DOCSTRING.format(arguments_docstring=params),
-                constants.EIGHT_SPACES,
-            )
+                        test_method_ = Method(
+                            method,
+                            name.name_underscored_lowered,
+                            test=True
+                        )
+                        test_klass.add_method(test_method_)
 
-        return ''
+                    module.add_class(klass)
+                    package.add_file(module)
+
+                    test_module.add_class(test_klass)
+                    test_package.add_file(test_module)
+
+                # Add built package to storage_package
+                storage_package.add_subpackage(package)
+
+            # Add built storage_package to root_package
+            root_package.add_subpackage(storage_package)
+
+            root_test_package.add_subpackage(test_package)
+
+        return root_package, root_test_package
+
+    def _build_method_args_kwargs(self, method, args_kwargs):
+        for item in args_kwargs:
+            if isinstance(item, list):
+                for arg in item:
+                    method.add_argument(arg)
+
+            elif isinstance(item, dict):
+                for keyword, argument in item.items():
+                    method.add_kwargument(keyword, argument)
+
+        return method

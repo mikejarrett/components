@@ -1,23 +1,12 @@
 # -*- coding: utf-8 -*-
-from .. import constants
-METHOD_DOCSTRING = '''\
-"""
-        Args:
-{arguments_docstring}
-        """
-'''
+from component_generator import constants
+from component_generator.templates import (
+    METHOD_DOCSTRING,
+    METHOD_TEMPLATE,
+    TEST_METHOD_TEMPLATE
+)
 
-METHOD_TEMPLATE = """\
-    def {method_name}(self{arguments}{kwarguments}):
-        {docstring}raise NotImplementedError('Please implement: {method_name}')
 
-"""
-
-TEST_METHOD_TEMPLATE = """\
-    def test_{method_name}(self):
-        raise NotImplementedError('Please implement: test_{method_name}')
-
-"""
 class Method(object):  # A method -- def persist_{0}(self):
 
     def __init__(self, name, object_name, test=False):

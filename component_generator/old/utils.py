@@ -14,7 +14,6 @@ Names = namedtuple(
         'titled_no_underscore',
         'underscored_lower',
         'underscored_titled',
-        'raw_name',
     ]
 )
 
@@ -37,5 +36,4 @@ def clean_raw_name(raw_name):
         titled_no_underscore=titled.replace('_', ''),
         underscored_lower='_'.join([word.lower() for word in words]),
         underscored_titled='_'.join([word.title() for word in words]),
-        raw_name=raw_name,
     )
