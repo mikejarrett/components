@@ -41,10 +41,11 @@ class Generator(object):
         for package, methods in self._api_methods.items():
             api_package = Package(package)
             api_test_package = Package(package)
+            init_module = Module('__init__')
 
             for name in self._names:
-                klass = Klass(name.titled, package)
-                test_klass = Klass(name.titled, package, test=True)
+                klass = Klass(name, package)
+                test_klass = Klass(name, package, test=True)
 
                 module = Module(name.name_underscored_lowered)
                 test_module = Module(name.name_underscored_lowered, test=True)
@@ -88,6 +89,10 @@ class Generator(object):
                 test_module.add_class(test_klass)
                 api_test_package.add_file(test_module)
 
+                init_module.add_all_declaration(klass)
+
+            api_package.add_file(init_module)
+
             # Add built api_package to root_package.
             root_package.add_subpackage(api_package)
 
@@ -106,15 +111,25 @@ class Generator(object):
                 package = Package(storage_type)
 
                 for name in self._names:
-                    klass = Klass(name.titled, storage_type)
-                    test_klass = Klass(name.titled, storage_type, test=True)
+                    klass = Klass(name, storage_type)
+                    test_klass = Klass(name, storage_type, test=True)
 
                     module = Module(name.name_underscored_lowered)
-                    test_module = Module(name.name_underscored_lowered)
+                    test_module = Module(
+                        name.name_underscored_lowered,
+                        test=True
+                    )
 
                     for method in methods:
-                        klass.add_method(Method(method, name.name_underscored_lowered,))
-                        test_klass.add_method(Method(method, name.name_underscored_lowered, test=True))
+                        method_ = Method(method, name.name_underscored_lowered)
+                        klass.add_method(method_)
+
+                        test_method_ = Method(
+                            method,
+                            name.name_underscored_lowered,
+                            test=True
+                        )
+                        test_klass.add_method(test_method_)
 
                     for method in self._additional_methods.get(name.raw, {}):
                         method_ = self._build_method_args_kwargs(
@@ -132,9 +147,9 @@ class Generator(object):
                         test_klass.add_method(test_method_)
 
                     module.add_class(klass)
-                    test_module.add_class(test_klass)
-
                     package.add_file(module)
+
+                    test_module.add_class(test_klass)
                     test_package.add_file(test_module)
 
                 # Add built package to storage_package
