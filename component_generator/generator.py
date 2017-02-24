@@ -49,29 +49,32 @@ class Generator(object):
                 klass = Klass(name, package)
                 test_klass = Klass(name, package, test=True)
 
-                module = Module(name.name_underscored_lowered)
-                test_module = Module(name.name_underscored_lowered, test=True)
+                module = Module(name.underscored_lower)
+                test_module = Module(name.underscored_lower, test=True)
 
                 for method in methods:
                     method_ = Method(
                         method,
-                        name.name_underscored_lowered,
+                        name.underscored_lower,
                     )
                     klass.add_method(method_)
 
                     test_method_ = Method(
                         method,
-                        name.name_underscored_lowered,
+                        name.underscored_lower,
                         test=True,
                     )
                     test_klass.add_method(test_method_)
 
-                additional_methods = self._additional_methods.get(name.raw, {})
+                additional_methods = self._additional_methods.get(
+                    name.raw_name,
+                    {}
+                )
                 for method, args_kwargs in additional_methods.items():
                     method_ = self._build_method_args_kwargs(
                         Method(
                             method,
-                            name.name_underscored_lowered,
+                            name.underscored_lower,
                         ),
                         args_kwargs
                     )
@@ -80,7 +83,7 @@ class Generator(object):
 
                     test_method_ = Method(
                         method,
-                        name.name_underscored_lowered,
+                        name.underscored_lower,
                         test=True,
                     )
                     test_klass.add_method(test_method_)
@@ -116,26 +119,30 @@ class Generator(object):
                     klass = Klass(name, storage_type)
                     test_klass = Klass(name, storage_type, test=True)
 
-                    module = Module(name.name_underscored_lowered)
+                    module = Module(name.underscored_lower)
                     test_module = Module(
-                        name.name_underscored_lowered,
+                        name.underscored_lower,
                         test=True
                     )
 
                     for method in methods:
-                        method_ = Method(method, name.name_underscored_lowered)
+                        method_ = Method(method, name.underscored_lower)
                         klass.add_method(method_)
 
                         test_method_ = Method(
                             method,
-                            name.name_underscored_lowered,
+                            name.underscored_lower,
                             test=True
                         )
                         test_klass.add_method(test_method_)
 
-                    for method in self._additional_methods.get(name.raw, {}):
+                    additional_methods = self._additional_methods.get(
+                        name.raw_name,
+                        {}
+                    )
+                    for method in additional_methods:
                         method_ = self._build_method_args_kwargs(
-                            Method(method, name.name_underscored_lowered),
+                            Method(method, name.underscored_lower),
                             []
                         )
 
@@ -143,7 +150,7 @@ class Generator(object):
 
                         test_method_ = Method(
                             method,
-                            name.name_underscored_lowered,
+                            name.underscored_lower,
                             test=True
                         )
                         test_klass.add_method(test_method_)

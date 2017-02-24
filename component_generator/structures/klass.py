@@ -7,7 +7,7 @@ class Klass(object):
 
     def __init__(self, name, type_, test=False):
         self.base_name = name.titled
-        self.underscored_lower = name.name_underscored_lowered
+        self.underscored_lower = name.underscored_lower
 
         self.type_ = type_.title()
         self._methods = set()
